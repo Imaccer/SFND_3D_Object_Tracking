@@ -21,8 +21,14 @@ void detectObjects(cv::Mat& img, std::vector<BoundingBox>& bBoxes, float confThr
     vector<string> classes;
     ifstream ifs(classesFile.c_str());
     string line;
-    while (getline(ifs, line)) classes.push_back(line);
-    
+    while (getline(ifs, line))
+        classes.push_back(line);
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        std::cout << "Current working directory: " << cwd << std::endl;
+    } else {
+        std::cerr << "Failed to get current working directory." << std::endl;
+    }
     // load neural network
     cv::dnn::Net net = cv::dnn::readNetFromDarknet(modelConfiguration, modelWeights);
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
