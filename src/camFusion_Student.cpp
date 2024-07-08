@@ -242,10 +242,62 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // EOF STUDENT TASK
 }
 
+double getPercentile(std::vector<double> &data, double percentile)
+{
+    if (data.empty())
+        return 0.0;
+
+    size_t n = data.size();
+    size_t index = static_cast<size_t>(percentile * n);
+    std::nth_element(data.begin(), data.begin() + index, data.end());
+    return data[index];
+}
+
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // auxiliary variables
+    double dT = 1.0 / frameRate; // time between two measurements in seconds
+
+    // Extract x-coordinates from Lidar points
+    std::vector<double> xPrev, xCurr;
+    for (const auto &point : lidarPointsPrev)
+    {
+        xPrev.push_back(point.x);
+    }
+    for (const auto &point : lidarPointsCurr)
+    {
+        xCurr.push_back(point.x);
+    }
+
+    // Filter out outliers using percentiles
+    double lowerPercentile = 0.1; // 10th percentile
+    double upperPercentile = 0.9; // 90th percentile
+
+    double xPrevLower = getPercentile(xPrev, lowerPercentile);
+    double xPrevUpper = getPercentile(xPrev, upperPercentile);
+    double xCurrLower = getPercentile(xCurr, lowerPercentile);
+    double xCurrUpper = getPercentile(xCurr, upperPercentile);
+
+    // Filter x-coordinates to keep only values within the 10th to 90th percentile range
+    auto filterPercentiles = [](std::vector<double> &data, double lower, double upper) {
+        data.erase(std::remove_if(data.begin(), data.end(),
+                                  [lower, upper](double x) { return x < lower || x > upper; }),
+                   data.end());
+    };
+
+    filterPercentiles(xPrev, xPrevLower, xPrevUpper);
+    filterPercentiles(xCurr, xCurrLower, xCurrUpper);
+
+    // Compute the median x-coordinate after filtering
+    std::sort(xPrev.begin(), xPrev.end());
+    std::sort(xCurr.begin(), xCurr.end());
+
+    double medianXPrev = xPrev[xPrev.size() / 2];
+    double medianXCurr = xCurr[xCurr.size() / 2];
+
+    // Compute TTC from both measurements
+    TTC = medianXCurr * dT / (medianXPrev - medianXCurr);
 }
 
 
