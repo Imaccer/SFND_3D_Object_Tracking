@@ -138,9 +138,56 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
-}
+    // Temporary storage for matches within the bounding box
+    std::vector<cv::DMatch> matchesInROI;
 
+    for (auto match : kptMatches)
+    {
+        if (boundingBox.roi.contains(kptsCurr[match.trainIdx].pt))
+        {
+            matchesInROI.push_back(match);
+        }
+    }
+
+    // Calculate distances
+    std::vector<double> distances;
+
+    for (auto match : matchesInROI)
+    {
+        cv::Point2f ptPrev = kptsPrev[match.queryIdx].pt;
+        cv::Point2f ptCurr = kptsCurr[match.trainIdx].pt;
+        double dist = cv::norm(ptCurr - ptPrev);
+        distances.push_back(dist);
+    }
+
+    // Calculate the median distance
+    std::nth_element(distances.begin(), distances.begin() + distances.size() / 2, distances.end());
+    double medianDist = distances[distances.size() / 2];
+
+    // Calculate the median absolute deviation (MAD)
+    std::vector<double> absDevs;
+    for (double dist : distances)
+    {
+        absDevs.push_back(std::abs(dist - medianDist));
+    }
+
+    std::nth_element(absDevs.begin(), absDevs.begin() + absDevs.size() / 2, absDevs.end());
+    double mad = absDevs[absDevs.size() / 2];
+
+    // Define a threshold to filter out outliers based on MAD
+    double threshold = medianDist + 3 * mad;
+
+    // Filter matches to remove outliers
+    boundingBox.kptMatches.clear();
+
+    for (size_t i = 0; i < matchesInROI.size(); ++i)
+    {
+        if (distances[i] <= threshold)
+        {
+            boundingBox.kptMatches.push_back(matchesInROI[i]);
+        }
+    }
+}
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
