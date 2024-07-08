@@ -10,7 +10,6 @@
 
 using namespace std;
 
-
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
 void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints, float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
 {
@@ -30,8 +29,8 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
         Y = P_rect_xx * R_rect_xx * RT * X;
         cv::Point pt;
         // pixel coordinates
-        pt.x = Y.at<double>(0, 0) / Y.at<double>(2, 0); 
-        pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0); 
+        pt.x = Y.at<double>(0, 0) / Y.at<double>(2, 0);
+        pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0);
 
         vector<vector<BoundingBox>::iterator> enclosingBoxes; // pointers to all bounding boxes which enclose the current Lidar point
         for (vector<BoundingBox>::iterator it2 = boundingBoxes.begin(); it2 != boundingBoxes.end(); ++it2)
@@ -53,7 +52,7 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
 
         // check wether point has been enclosed by one or by multiple boxes
         if (enclosingBoxes.size() == 1)
-        { 
+        {
             // add Lidar point to bounding box
             enclosingBoxes[0]->lidarPoints.push_back(*it1);
         }
@@ -61,11 +60,11 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
     } // eof loop over all Lidar points
 }
 
-/* 
-* The show3DObjects() function below can handle different output image sizes, but the text output has been manually tuned to fit the 2000x2000 size. 
-* However, you can make this function work for other sizes too.
-* For instance, to use a 1000x1000 size, adjusting the text positions by dividing them by 2.
-*/
+/*
+ * The show3DObjects() function below can handle different output image sizes, but the text output has been manually tuned to fit the 2000x2000 size.
+ * However, you can make this function work for other sizes too.
+ * For instance, to use a 1000x1000 size, adjusting the text positions by dividing them by 2.
+ */
 void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait)
 {
     // create topview image
@@ -189,7 +188,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 }
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
-void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
+void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
     // compute distance ratios between all matched keypoints
@@ -300,7 +299,73 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 }
 
 
+
+void getMaxCountPairs(const std::map<std::pair<int, int>, int> &bbMatchCounts, std::map<int, int> &bbBestMatches)
+{
+    // Map to track the maximum count for each firstBoxId
+    std::map<int, std::pair<int, int>> maxCounts;
+
+    // Iterate through bbMatchCounts to find the maximum counts per firstBoxId
+    for (const auto &bbMatch : bbMatchCounts)
+    {
+        int firstBoxId = bbMatch.first.first;
+        int secondBoxId = bbMatch.first.second;
+        int count = bbMatch.second;
+
+        if (maxCounts.find(firstBoxId) == maxCounts.end() || count > maxCounts[firstBoxId].second)
+        {
+            maxCounts[firstBoxId] = std::make_pair(secondBoxId, count);
+        }
+    }
+
+    // Create the final map with the best matches
+    // std::map<int, int> bbBestMatches;
+    for (const auto &maxCount : maxCounts)
+    {
+        int firstBoxId = maxCount.first;
+        int secondBoxId = maxCount.second.first;
+        bbBestMatches[firstBoxId] = secondBoxId;
+        std::cout << "Best match for " << firstBoxId << ": (" << firstBoxId << ", " << secondBoxId << ") with count " << maxCount.second.second << std::endl;
+    }
+
+    // return bbBestMatches;
+}
+
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+
+    std::map<std::pair<int, int>, int> bbMatchCounts;
+
+    // Loop over all matches
+    for (auto &match : matches)
+    {
+        cv::KeyPoint prevKeypoint = prevFrame.keypoints[match.queryIdx];
+        cv::KeyPoint currKeypoint = currFrame.keypoints[match.trainIdx];
+
+        // Loop over all bounding boxes in the previous frame
+        for (auto &prevBB : prevFrame.boundingBoxes)
+        {
+            // Loop over all bounding boxes in the current frame
+            for (auto &currBB : currFrame.boundingBoxes)
+            {
+                // Check if keypoints fall within the bounding boxes
+                if (prevBB.roi.contains(prevKeypoint.pt) && currBB.roi.contains(currKeypoint.pt))
+                {
+                    std::pair<int, int> bbPair = std::make_pair(prevBB.boxID, currBB.boxID);
+                    // Output current state before incrementing
+                    // std::cout << "Before incrementing: " << bbMatchCounts[bbPair] << std::endl;
+
+                    // Increment the count for bbPair
+                    bbMatchCounts[bbPair]++;
+
+                    // Output the count after incrementing
+                    // std::cout << "After incrementing: " << bbMatchCounts[bbPair] << std::endl;
+                    // std::cout << bbMatchCounts[bbPair]
+                    // std::cout << "PrevBB: " << bbMatchCounts.first.first << ", CurrBB: " << bbMatchCounts.first.second << " => Count: " << bbMatchCounts.second << std::endl;
+                }
+            }
+        }
+    }
+    getMaxCountPairs(bbMatchCounts, bbBestMatches);
 }
+
