@@ -22,11 +22,26 @@
 
 using namespace std;
 
+void logMetrics(const string &detectorType, const string &descriptorType, int keypoints, int matches, double detector_time, double descriptor_time)
+{
+    ofstream logFile("../performance_metrics.csv", ios::app);
+    logFile << detectorType << "," << descriptorType << "," << keypoints << "," << matches << "," << detector_time << "," << descriptor_time << "\n";
+    logFile.close();
+}
+
+void clearLogFile()
+{
+    ofstream logFile("../performance_metrics.csv");
+    logFile << "Detector,Descriptor,Keypoints,Matches,Detector Time(ms),Descriptor Time(ms)\n";
+    logFile.close();
+}
+
 /* MAIN PROGRAM */
 int main(int argc, const char *argv[])
 {
     /* INIT VARIABLES AND DATA STRUCTURES */
-
+    clearLogFile();
+    
     // data location
     string dataPath = "../";
 
@@ -106,7 +121,25 @@ int main(int argc, const char *argv[])
     int dataBufferSize = 2;                       // no. of images which are held in memory (ring buffer) at the same time
     vector<DataFrame> dataBuffer;                 // list of data frames which are held in memory at the same time
     bool bVis = false;                            // visualize results
+    
+    // Detector and Descriptor types
+    vector<string> detectorTypes = {"SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"};
+    vector<string> descriptorTypes = {"BRIEF", "ORB", "FREAK", "AKAZE", "SIFT"};
 
+    // Main loop over all images
+    for (const string &detectorType : detectorTypes)
+    {
+        for (const string &descriptorType : descriptorTypes)
+        {
+            // Reset data buffer for each combination
+            dataBuffer.clear();
+
+            if ((descriptorType == "AKAZE" && detectorType != "AKAZE") ||
+                (detectorType == "AKAZE" && descriptorType != "AKAZE") ||
+                (detectorType == "SIFT" && descriptorType == "ORB"))
+            {
+                continue; // Skip incompatible combinations
+            }
     /* MAIN LOOP OVER ALL IMAGES */
 
     for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex += imgStepWidth)
@@ -159,7 +192,7 @@ int main(int argc, const char *argv[])
         clusterLidarWithROI((dataBuffer.end() - 1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = false;
+        bVis = true;
         if (bVis)
         {
             show3DObjects((dataBuffer.end() - 1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -179,16 +212,28 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+        // string detectorType = "SHITOMASI";
 
-        if (detectorType.compare("SHITOMASI") == 0)
-        {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
-        }
-        else
-        {
-            //...
-        }
+                double detector_time = (double)cv::getTickCount();
+
+                if (detectorType.compare("SHITOMASI") == 0)
+                {
+                    detKeypointsShiTomasi(keypoints, imgGray, false);
+                }
+                else if (detectorType.compare("HARRIS") == 0)
+                {
+                    detKeypointsHarris(keypoints, imgGray, false);
+                }
+                else
+                {
+                    detKeypointsModern(keypoints, imgGray, detectorType, false);
+                }
+
+                detector_time = 1000.0 * ((double)cv::getTickCount() - detector_time) / cv::getTickFrequency();
+                //// EOF STUDENT ASSIGNMENT
+
+                img.release();
+                imgGray.release();
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
@@ -212,8 +257,10 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        // string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        double descriptor_time = (double)cv::getTickCount();
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
+        descriptor_time = 1000.0 * ((double)cv::getTickCount() - descriptor_time) / cv::getTickFrequency();
 
         // push descriptors for current frame to end of data buffer
         (dataBuffer.end() - 1)->descriptors = descriptors;
@@ -226,9 +273,11 @@ int main(int argc, const char *argv[])
             /* MATCH KEYPOINT DESCRIPTORS */
 
             vector<cv::DMatch> matches;
-            string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
-            string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
+            string descType = (descriptorType == "SIFT" || descriptorType == "SURF") ? "DES_HOG" : "DES_BINARY";
+            string matcherType = (descType == "DES_HOG") ? "MAT_FLANN" : "MAT_BF";
+            // string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
+            // string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
+            string selectorType = "SEL_KNN";       // SEL_NN, SEL_KNN
 
             matchDescriptors((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints,
                              (dataBuffer.end() - 2)->descriptors, (dataBuffer.end() - 1)->descriptors,
@@ -292,6 +341,9 @@ int main(int argc, const char *argv[])
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 
+                    // Log metrics
+                    logMetrics(detectorType, descriptorType, keypoints.size(), matches.size(), detector_time, descriptor_time);
+
                     bVis = true;
                     if (bVis)
                     {
@@ -316,6 +368,8 @@ int main(int argc, const char *argv[])
         }
 
     } // eof loop over all images
+        }
+    }
 
     return 0;
 }
