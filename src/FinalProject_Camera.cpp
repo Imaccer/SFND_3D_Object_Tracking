@@ -122,6 +122,10 @@ int main(int argc, const char *argv[])
     vector<DataFrame> dataBuffer;                 // list of data frames which are held in memory at the same time
     bool bVis = false;                            // visualize results
     
+    // Detector and Descriptor Type
+    // string detectorType = "SHITOMASI";
+    // string descriptorType = "BRIEF";
+
     // Detector and Descriptor types
     vector<string> detectorTypes = {"SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"};
     vector<string> descriptorTypes = {"BRIEF", "ORB", "FREAK", "AKAZE", "SIFT"};
@@ -192,7 +196,7 @@ int main(int argc, const char *argv[])
         clusterLidarWithROI((dataBuffer.end() - 1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
+        bVis = false;
         if (bVis)
         {
             show3DObjects((dataBuffer.end() - 1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -344,7 +348,7 @@ int main(int argc, const char *argv[])
                     // Log metrics
                     logMetrics(detectorType, descriptorType, keypoints.size(), matches.size(), detector_time, descriptor_time, ttcLidar, ttcCamera);
 
-                    bVis = true;
+                    bVis = false;
                     if (bVis)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -368,8 +372,8 @@ int main(int argc, const char *argv[])
         }
 
     } // eof loop over all images
-        }
-    }
+        } // UNCOMMENT FOR LOOPING THROUGH DETECTOR/DESCRIPTOR TYPES
+    }  // UNCOMMENT FOR LOOPING THROUGH DETECTOR/DESCRIPTOR TYPES
 
     return 0;
 }
