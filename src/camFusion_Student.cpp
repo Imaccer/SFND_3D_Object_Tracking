@@ -220,7 +220,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
                 distRatios.push_back(distRatio);
             }
         } // eof inner loop over all matched kpts
-    }     // eof outer loop over all matched kpts
+    } // eof outer loop over all matched kpts
 
     // only continue if list of distance ratios is not empty
     if (distRatios.size() == 0)
@@ -228,7 +228,6 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
         TTC = NAN;
         return;
     }
-
 
     // STUDENT TASK (replacement for meanDistRatio)
     std::sort(distRatios.begin(), distRatios.end());
@@ -278,9 +277,11 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     double xCurrUpper = getPercentile(xCurr, upperPercentile);
 
     // Filter x-coordinates to keep only values within the 10th to 90th percentile range
-    auto filterPercentiles = [](std::vector<double> &data, double lower, double upper) {
+    auto filterPercentiles = [](std::vector<double> &data, double lower, double upper)
+    {
         data.erase(std::remove_if(data.begin(), data.end(),
-                                  [lower, upper](double x) { return x < lower || x > upper; }),
+                                  [lower, upper](double x)
+                                  { return x < lower || x > upper; }),
                    data.end());
     };
 
@@ -295,7 +296,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     TTC = minXCurr * dT / (minXPrev - minXCurr);
     std::cout << "minXCurr: " << minXCurr << endl;
     std::cout << "minXPrev: " << minXPrev << endl;
-    std::cout << "minXPrev - minXCurr: " << minXPrev - minXCurr << endl; 
+    std::cout << "minXPrev - minXCurr: " << minXPrev - minXCurr << endl;
     // // Compute the median x-coordinate after filtering
     // std::sort(xPrev.begin(), xPrev.end());
     // std::sort(xCurr.begin(), xCurr.end());
@@ -306,8 +307,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // // Compute TTC from both measurements
     // TTC = medianXCurr * dT / (medianXPrev - medianXCurr);
 }
-
-
 
 void getMaxCountPairs(const std::map<std::pair<int, int>, int> &bbMatchCounts, std::map<int, int> &bbBestMatches)
 {
@@ -377,4 +376,3 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     }
     getMaxCountPairs(bbMatchCounts, bbBestMatches);
 }
-
