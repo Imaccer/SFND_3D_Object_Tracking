@@ -287,15 +287,24 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     filterPercentiles(xPrev, xPrevLower, xPrevUpper);
     filterPercentiles(xCurr, xCurrLower, xCurrUpper);
 
-    // Compute the median x-coordinate after filtering
-    std::sort(xPrev.begin(), xPrev.end());
-    std::sort(xCurr.begin(), xCurr.end());
-
-    double medianXPrev = xPrev[xPrev.size() / 2];
-    double medianXCurr = xCurr[xCurr.size() / 2];
+    // Compute the minimum x-coordinate after filtering
+    double minXPrev = *std::min_element(xPrev.begin(), xPrev.end());
+    double minXCurr = *std::min_element(xCurr.begin(), xCurr.end());
 
     // Compute TTC from both measurements
-    TTC = medianXCurr * dT / (medianXPrev - medianXCurr);
+    TTC = minXCurr * dT / (minXPrev - minXCurr);
+    std::cout << "minXCurr: " << minXCurr << endl;
+    std::cout << "minXPrev: " << minXPrev << endl;
+    std::cout << "minXPrev - minXCurr: " << minXPrev - minXCurr << endl; 
+    // // Compute the median x-coordinate after filtering
+    // std::sort(xPrev.begin(), xPrev.end());
+    // std::sort(xCurr.begin(), xCurr.end());
+
+    // double medianXPrev = xPrev[xPrev.size() / 2];
+    // double medianXCurr = xCurr[xCurr.size() / 2];
+
+    // // Compute TTC from both measurements
+    // TTC = medianXCurr * dT / (medianXPrev - medianXCurr);
 }
 
 
