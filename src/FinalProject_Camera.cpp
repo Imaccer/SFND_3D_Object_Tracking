@@ -22,17 +22,17 @@
 
 using namespace std;
 
-void logMetrics(const string &detectorType, const string &descriptorType, int keypoints, int matches, double detector_time, double descriptor_time)
+void logMetrics(const string &detectorType, const string &descriptorType, int keypoints, int matches, double detector_time, double descriptor_time, double ttcLidar, double ttcCamera)
 {
     ofstream logFile("../performance_metrics.csv", ios::app);
-    logFile << detectorType << "," << descriptorType << "," << keypoints << "," << matches << "," << detector_time << "," << descriptor_time << "\n";
+    logFile << detectorType << "," << descriptorType << "," << keypoints << "," << matches << "," << detector_time << "," << descriptor_time << "," << ttcLidar << "," << ttcCamera << "\n";
     logFile.close();
 }
 
 void clearLogFile()
 {
     ofstream logFile("../performance_metrics.csv");
-    logFile << "Detector,Descriptor,Keypoints,Matches,Detector Time(ms),Descriptor Time(ms)\n";
+    logFile << "Detector,Descriptor,Keypoints,Matches,Detector Time(ms),Descriptor Time(ms), Lidar TTC (s), Camera TTC (s) \n";
     logFile.close();
 }
 
@@ -342,7 +342,7 @@ int main(int argc, const char *argv[])
                     //// EOF STUDENT ASSIGNMENT
 
                     // Log metrics
-                    logMetrics(detectorType, descriptorType, keypoints.size(), matches.size(), detector_time, descriptor_time);
+                    logMetrics(detectorType, descriptorType, keypoints.size(), matches.size(), detector_time, descriptor_time, ttcLidar, ttcCamera);
 
                     bVis = true;
                     if (bVis)
